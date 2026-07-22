@@ -5,14 +5,25 @@
 <html lang="en">
 
 <head>
-    <title>ESP32 Web BLE - SENSOR</title>
+    <title>WoMo Kuehlung</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
     <link rel="icon" type="image/png" href="favicon.ico">
     <link rel="stylesheet" href="style.css">
     <style>
-        .fan-control { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
-        .fan-btn { min-width: 58px; padding: 10px 14px; font-size: 1rem; cursor: pointer; }
+        .fan-control {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .fan-btn {
+            min-width: 58px;
+            padding: 10px 14px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
     </style>
 
 </head>
@@ -20,7 +31,7 @@
 <body>
     <!-- Navigation -->
     <div class="topnav">
-        <h1>ESP32 Web BLE - SENSOR</h1>
+        <h1>WoMo Kuehlung</h1>
     </div>
     <div class="content">
         <!-- Connect/Disconnect buttons -->
@@ -70,9 +81,9 @@
                 </div>
                 <div class="write-status" id="writeStatus">Bereit</div>
             </div>
-                <div class="write-status" id="writeStatus">Ready</div>
-            </div>
+            <div class="write-status" id="writeStatus">Ready</div>
         </div>
+    </div>
     </div>
     <div class="footer">
         <p><a href="https://randomnerdtutorials.com/esp32-web-ble-sensor-visualization/" target="_blank">Created by
