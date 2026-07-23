@@ -5,25 +5,14 @@
 <html lang="en">
 
 <head>
-    <title>womoklg</title>
+    <title>ESP32 Web BLE - SENSOR</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
     <link rel="icon" type="image/png" href="favicon.ico">
     <link rel="stylesheet" href="style.css">
     <style>
-        .fan-control {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        .fan-btn {
-            min-width: 58px;
-            padding: 10px 14px;
-            font-size: 1rem;
-            cursor: pointer;
-        }
+        .fan-control { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+        .fan-btn { min-width: 58px; padding: 10px 14px; font-size: 1rem; cursor: pointer; }
     </style>
 
 </head>
@@ -31,7 +20,7 @@
 <body>
     <!-- Navigation -->
     <div class="topnav">
-        <h1>womoklg</h1>
+        <h1>ESP32 Web BLE - SENSOR</h1>
     </div>
     <div class="content">
         <!-- Connect/Disconnect buttons -->
@@ -49,26 +38,10 @@
                 <span class="sensor-icon">&#x1F321;</span>
                 <div class="sensor-label">Temperature</div>
                 <div class="sensor-value">
-                    <span id="tempValue">--</span>
-                    <span class="sensor-unit">&nbsp;&deg;C</span>
+                    <span id="tempValue">--</span><span class="sensor-unit" id="tempUnitLabel">&nbsp;&deg;C</span>
                 </div>
                 <div class="sensor-timestamp" id="tempTimestamp">No reading</div>
-            </div>
-            <div class="sensor-card hum">
-                <span class="sensor-icon">&#x1F4A7;</span>
-                <div class="sensor-label">Humidity</div>
-                <div class="sensor-value">
-                    <span id="humValue">--</span><span class="sensor-unit">&nbsp;%</span>
-                </div>
-                <div class="sensor-timestamp" id="humTimestamp">No reading</div>
-            </div>
-            <div class="sensor-card press">
-                <span class="sensor-icon">&#8595;</span>
-                <div class="sensor-label">Pressure</div>
-                <div class="sensor-value">
-                    <span id="pressValue">--</span><span class="sensor-unit">&nbsp;hPa</span>
-                </div>
-                <div class="sensor-timestamp" id="pressTimestamp">No reading</div>
+
             </div>
             <div class="sensor-card write">
                 <span class="sensor-icon">&#x1F4A8;</span>
@@ -81,9 +54,9 @@
                 </div>
                 <div class="write-status" id="writeStatus">Bereit</div>
             </div>
-            <div class="write-status" id="writeStatus">Ready</div>
+                <div class="write-status" id="writeStatus">Ready</div>
+            </div>
         </div>
-    </div>
     </div>
     <div class="footer">
         <p><a href="https://randomnerdtutorials.com/esp32-web-ble-sensor-visualization/" target="_blank">Created by
@@ -97,54 +70,27 @@
         const bleDot = document.getElementById('bleDot');
 
         const tempValueEl = document.getElementById('tempValue');
-        const humValueEl = document.getElementById('humValue');
-        const pressValueEl = document.getElementById('pressValue');
         const writeValueEl = document.getElementById('writeValue');
         const tempTimestamp = document.getElementById('tempTimestamp');
-        const humTimestamp = document.getElementById('humTimestamp');
-        const pressTimestamp = document.getElementById('pressTimestamp');
-        const tempUnitLabel = document.getElementById('tempUnitLabel');
 
         // BLE UUIDs
         var deviceName = 'womoklg';
         var bleService = '0000181a-0000-1000-8000-00805f9b34fb';
         var tempCharUUID = '00002a6e-0000-1000-8000-00805f9b34fb';
-        var humCharUUID = '00002a6f-0000-1000-8000-00805f9b34fb';
-        var pressCharUUID = '00002a6d-0000-1000-8000-00805f9b34fb';
         var writeIntCharUUID = '12345678-1234-5678-1234-56789abcdef0';
 
         // BLE state
         var bleServer;
         var tempCharFound;
-        var humCharFound;
-        var pressCharFound;
         var writeIntCharFound;
         var userDisconnected = false;
 
         // Sensor state
         var currentWriteValue = 123;
-        const MAX_POINTS = 60;
-        var tempData = { labels: [], values: [] };
-        var humData = { labels: [], values: [] };
-        var pressData = { labels: [], values: [] };
 
         function updateWriteValueDisplay(value) {
             currentWriteValue = value;
             writeValueEl.textContent = value;
-        }
-
-        function pushPoint(dataObj, chart, label, value) {
-            dataObj.labels.push(label);
-            dataObj.values.push(value);
-
-            if (dataObj.labels.length > MAX_POINTS) {
-                dataObj.labels.shift();
-                dataObj.values.shift();
-            }
-
-            chart.data.labels = dataObj.labels;
-            chart.data.datasets[0].data = dataObj.values;
-            chart.update('none');
         }
 
         // BLE UI helpers
@@ -196,8 +142,6 @@
                 const service = await gattServer.getPrimaryService(bleService);
 
                 await subscribeChar(service, tempCharUUID, handleTemp, v => { tempCharFound = v; });
-                await subscribeChar(service, humCharUUID, handleHum, v => { humCharFound = v; });
-                await subscribeChar(service, pressCharUUID, handlePress, v => { pressCharFound = v; });
                 await subscribeChar(service, writeIntCharUUID, handleWriteValue, v => { writeIntCharFound = v; });
 
             } catch (err) {
@@ -241,34 +185,12 @@
         }
         function handleTemp(event) {
             var val = parseFloat(new TextDecoder().decode(event.target.value));
-
             if (isNaN(val)) return;
 
             tempValueEl.textContent = val.toFixed(1);
 
             var ts = getTime();
             tempTimestamp.textContent = 'Last reading: ' + ts;
-
-            const valC = parseFloat(val.toFixed(1));
-            pushPoint(tempData, tempChart, ts, valC);
-        }
-
-        function handleHum(event) {
-            var val = parseFloat(new TextDecoder().decode(event.target.value));
-            if (isNaN(val)) return;
-            humValueEl.textContent = val.toFixed(1);
-            var ts = getTime();
-            humTimestamp.textContent = 'Last reading: ' + ts;
-            pushPoint(humData, humChart, ts, parseFloat(val.toFixed(1)));
-        }
-
-        function handlePress(event) {
-            var val = parseFloat(new TextDecoder().decode(event.target.value));
-            if (isNaN(val)) return;
-            pressValueEl.textContent = val.toFixed(1);
-            var ts = getTime();
-            pressTimestamp.textContent = 'Last reading: ' + ts;
-            pushPoint(pressData, pressChart, ts, parseFloat(val.toFixed(1)));
         }
 
         // Disconnect handlers
@@ -286,8 +208,6 @@
             userDisconnected = true;
             const stops = [];
             if (tempCharFound) stops.push(tempCharFound.stopNotifications().catch(() => { }));
-            if (humCharFound) stops.push(humCharFound.stopNotifications().catch(() => { }));
-            if (pressCharFound) stops.push(pressCharFound.stopNotifications().catch(() => { }));
 
             Promise.all(stops)
                 .then(() => bleServer.disconnect())
