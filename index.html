@@ -49,10 +49,10 @@
                 <span class="sensor-icon">&#x1F321;</span>
                 <div class="sensor-label">Temperature</div>
                 <div class="sensor-value">
-                    <span id="tempValue">--</span><span class="sensor-unit" id="tempUnitLabel">&nbsp;&deg;C</span>
+                    <span id="tempValue">--</span>
+                    <span class="sensor-unit">&nbsp;&deg;C</span>
                 </div>
                 <div class="sensor-timestamp" id="tempTimestamp">No reading</div>
-
             </div>
             <div class="sensor-card hum">
                 <span class="sensor-icon">&#x1F4A7;</span>
@@ -241,10 +241,14 @@
         }
         function handleTemp(event) {
             var val = parseFloat(new TextDecoder().decode(event.target.value));
+
             if (isNaN(val)) return;
-            lastTempC = val;
+
+            tempValueEl.textContent = val.toFixed(1);
+
             var ts = getTime();
             tempTimestamp.textContent = 'Last reading: ' + ts;
+
             const valC = parseFloat(val.toFixed(1));
             pushPoint(tempData, tempChart, ts, valC);
         }
