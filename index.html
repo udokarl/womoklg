@@ -5,25 +5,14 @@
 <html lang="en">
 
 <head>
-    <title>WoMo AutoKlg</title>
+    <title>ESP32 Web BLE - SENSOR</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
     <link rel="icon" type="image/png" href="favicon.ico">
     <link rel="stylesheet" href="style.css">
     <style>
-        .fan-control {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        .fan-btn {
-            min-width: 58px;
-            padding: 10px 14px;
-            font-size: 1rem;
-            cursor: pointer;
-        }
+        .fan-control { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+        .fan-btn { min-width: 58px; padding: 10px 14px; font-size: 1rem; cursor: pointer; }
     </style>
 
 </head>
@@ -31,7 +20,7 @@
 <body>
     <!-- Navigation -->
     <div class="topnav">
-        <h1>WoMo AutoKlg</h1>
+        <h1>ESP32 Web BLE - SENSOR</h1>
     </div>
     <div class="content">
         <!-- Connect/Disconnect buttons -->
@@ -43,27 +32,26 @@
                 <span id="bleState">Disconnected</span>
             </div>
         </div>
-
-        <!-- Temperaturen Feld -->
+        <!-- Sensor Reading Cards -->
         <div class="sensor-grid">
             <div class="sensor-card temp">
                 <span class="sensor-icon">&#x1F321;</span>
-                <div class="sensor-label">Temperature</div>
-                <!-- Temp- Vorlauf-->
-                <div class="sensor-vorl-value">
-                    <span id="tempVorlValue">--</span><span class="sensor-unit"
-                        id="tempUnitVorlLabel">&nbsp;&deg;C</span>
+                <div class="sensor-label">Temperatur Vorlauf</div>
+                <div class="sensor-value">
+                    <span id="tempVorlValue">--</span><span class="sensor-unit">&nbsp;&deg;C</span>
                 </div>
-                <div class="sensor-timestamp" id="tempTimestamp">No reading</div>
-                <!-- Temp- Nachlauf-->
-                <div class="sensor-vorl-value">
-                    <span id="tempVorlValue">--</span><span class="sensor-unit"
-                        id="tempUnitVorlLabel">&nbsp;&deg;C</span>
-                </div>
-                <div class="sensor-timestamp" id="tempTimestamp">No reading</div>
+                <div class="sensor-timestamp" id="tempVorlTimestamp">No reading</div>
             </div>
 
-            <!-- Lüfter Feld -->
+            <div class="sensor-card temp">
+                <span class="sensor-icon">&#x1F321;</span>
+                <div class="sensor-label">Temperatur Nachlauf</div>
+                <div class="sensor-value">
+                    <span id="tempNachlValue">--</span><span class="sensor-unit">&nbsp;&deg;C</span>
+                </div>
+                <div class="sensor-timestamp" id="tempNachlTimestamp">No reading</div>
+            </div>
+
             <div class="sensor-card write">
                 <span class="sensor-icon">&#x1F4A8;</span>
                 <div class="sensor-label">Lüfter: <span id="writeValue">0</span></div>
@@ -75,9 +63,9 @@
                 </div>
                 <div class="write-status" id="writeStatus">Bereit</div>
             </div>
-            <div class="write-status" id="writeStatus">Ready</div>
+                <div class="write-status" id="writeStatus">Ready</div>
+            </div>
         </div>
-    </div>
     </div>
     <div class="footer">
         <p><a href="https://randomnerdtutorials.com/esp32-web-ble-sensor-visualization/" target="_blank">Created by
@@ -91,18 +79,22 @@
         const bleDot = document.getElementById('bleDot');
 
         const tempVorlValueEl = document.getElementById('tempVorlValue');
+        const tempNachlValueEl = document.getElementById('tempNachlValue');
         const writeValueEl = document.getElementById('writeValue');
-        const tempTimestamp = document.getElementById('tempTimestamp');
+        const tempVorlTimestamp = document.getElementById('tempVorlTimestamp');
+        const tempNachlTimestamp = document.getElementById('tempNachlTimestamp');
 
         // BLE UUIDs
         var deviceName = 'womoklg';
         var bleService = '0000181a-0000-1000-8000-00805f9b34fb';
-        var tempCharUUID = '00002a6e-0000-1000-8000-00805f9b34fb';
+        var tempVorlCharUUID = '00002a6e-0000-1000-8000-00805f9b34fb';
+        var tempNachlCharUUID = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
         var writeIntCharUUID = '12345678-1234-5678-1234-56789abcdef0';
 
         // BLE state
         var bleServer;
-        var tempCharFound;
+        var tempVorlCharFound;
+        var tempNachlCharFound;
         var writeIntCharFound;
         var userDisconnected = false;
 
@@ -162,7 +154,8 @@
 
                 const service = await gattServer.getPrimaryService(bleService);
 
-                await subscribeChar(service, tempCharUUID, handleTemp, v => { tempCharFound = v; });
+                await subscribeChar(service, tempVorlCharUUID, handleTempVorl, v => { tempVorlCharFound = v; });
+                await subscribeChar(service, tempNachlCharUUID, handleTempNachl, v => { tempNachlCharFound = v; });
                 await subscribeChar(service, writeIntCharUUID, handleWriteValue, v => { writeIntCharFound = v; });
 
             } catch (err) {
@@ -204,14 +197,24 @@
             updateWriteValueDisplay(intValue);
             console.log(`Updated write value from BLE: ${intValue}`);
         }
-        function handleTemp(event) {
+        function handleTempVorl(event) {
             var val = parseFloat(new TextDecoder().decode(event.target.value));
             if (isNaN(val)) return;
 
             tempVorlValueEl.textContent = val.toFixed(1);
 
             var ts = getTime();
-            tempTimestamp.textContent = 'Last reading: ' + ts;
+            tempVorlTimestamp.textContent = 'Last reading: ' + ts;
+        }
+
+        function handleTempNachl(event) {
+            var val = parseFloat(new TextDecoder().decode(event.target.value));
+            if (isNaN(val)) return;
+
+            tempNachlValueEl.textContent = val.toFixed(1);
+
+            var ts = getTime();
+            tempNachlTimestamp.textContent = 'Last reading: ' + ts;
         }
 
         // Disconnect handlers
@@ -228,7 +231,8 @@
             }
             userDisconnected = true;
             const stops = [];
-            if (tempCharFound) stops.push(tempCharFound.stopNotifications().catch(() => { }));
+            if (tempVorlCharFound) stops.push(tempVorlCharFound.stopNotifications().catch(() => { }));
+            if (tempNachlCharFound) stops.push(tempNachlCharFound.stopNotifications().catch(() => { }));
 
             Promise.all(stops)
                 .then(() => bleServer.disconnect())
