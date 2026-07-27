@@ -1,0 +1,298 @@
+<!-- Rui Santos & Sara Santos - Random Nerd Tutorials
+  Complete project details at https://RandomNerdTutorials.com/esp32-web-ble-sensor-visualization/
+  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files. The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software. -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>WoMo AutoKlg</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="favicon.ico">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .fan-control {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .fan-btn {
+            min-width: 58px;
+            padding: 10px 14px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+    </style>
+
+</head>
+
+<body>
+    <!-- Navigation -->
+    <div class="topnav">
+        <h1>WoMo AutoKlg</h1>
+    </div>
+    <div class="content">
+        <!-- Connect/Disconnect buttons -->
+        <div class="connection-card">
+            <button id="connectBleButton" class="connectButton">&#x1F4F6;&nbsp; Connect to BLE device</button>
+            <button id="disconnectBleButton" class="disconnectButton hidden">&#x274C;&nbsp; Disconnect</button>
+            <div class="ble-status">
+                <span class="ble-dot" id="bleDot"></span>
+                <span id="bleState">Disconnected</span>
+            </div>
+        </div>
+
+        <!-- Temperaturen Feld -->
+        <div class="sensor-grid">
+            <div class="sensor-card temp">
+                <span class="sensor-icon">&#x1F321;</span>
+                <div class="sensor-label">Temperature</div>
+                <!-- Temp- Vorlauf-->
+                <div class="sensor-vorl-value">
+                    <span id="tempVorlValue">--</span><span class="sensor-unit"
+                        id="tempUnitVorlLabel">&nbsp;&deg;C</span>
+                </div>
+                <div class="sensor-timestamp" id="tempTimestamp">No reading</div>
+                <!-- Temp- Nachlauf-->
+                <div class="sensor-vorl-value">
+                    <span id="tempVorlValue">--</span><span class="sensor-unit"
+                        id="tempUnitVorlLabel">&nbsp;&deg;C</span>
+                </div>
+                <div class="sensor-timestamp" id="tempTimestamp">No reading</div>
+            </div>
+
+            <!-- Lüfter Feld -->
+            <div class="sensor-card write">
+                <span class="sensor-icon">&#x1F4A8;</span>
+                <div class="sensor-label">Lüfter: <span id="writeValue">0</span></div>
+                <div class="write-control fan-control">
+                    <button class="fan-btn" id="fanOffButton">Aus</button>
+                    <button class="fan-btn" id="fanMinButton">Min</button>
+                    <button class="fan-btn fan-step" id="fanPlusButton">+</button>
+                    <button class="fan-btn fan-step" id="fanMinusButton">-</button>
+                </div>
+                <div class="write-status" id="writeStatus">Bereit</div>
+            </div>
+            <div class="write-status" id="writeStatus">Ready</div>
+        </div>
+    </div>
+    </div>
+    <div class="footer">
+        <p><a href="https://randomnerdtutorials.com/esp32-web-ble-sensor-visualization/" target="_blank">Created by
+                RandomNerdTutorials.com - Read the Complete Project »</a></p>
+    </div>
+    <script>
+        // DOM Elements
+        const connectButton = document.getElementById('connectBleButton');
+        const disconnectButton = document.getElementById('disconnectBleButton');
+        const bleStateEl = document.getElementById('bleState');
+        const bleDot = document.getElementById('bleDot');
+
+        const tempVorlValueEl = document.getElementById('tempVorlValue');
+        const writeValueEl = document.getElementById('writeValue');
+        const tempTimestamp = document.getElementById('tempTimestamp');
+
+        // BLE UUIDs
+        var deviceName = 'womoklg';
+        var bleService = '0000181a-0000-1000-8000-00805f9b34fb';
+        var tempCharUUID = '00002a6e-0000-1000-8000-00805f9b34fb';
+        var writeIntCharUUID = '12345678-1234-5678-1234-56789abcdef0';
+
+        // BLE state
+        var bleServer;
+        var tempCharFound;
+        var writeIntCharFound;
+        var userDisconnected = false;
+
+        // Sensor state
+        var currentWriteValue = 123;
+
+        function updateWriteValueDisplay(value) {
+            currentWriteValue = value;
+            writeValueEl.textContent = value;
+        }
+
+        // BLE UI helpers
+        function showConnectButton() {
+            connectButton.classList.remove('hidden');
+            disconnectButton.classList.add('hidden');
+        }
+
+        function showDisconnectButton() {
+            connectButton.classList.add('hidden');
+            disconnectButton.classList.remove('hidden');
+        }
+
+        function setBleConnected(deviceName) {
+            bleStateEl.textContent = 'Connected to ' + deviceName;
+            bleDot.className = 'ble-dot connected';
+            showDisconnectButton();
+        }
+
+        function setBleDisconnected(msg) {
+            bleStateEl.textContent = msg || 'Disconnected';
+            bleDot.className = 'ble-dot';
+            showConnectButton();
+        }
+
+        function isWebBluetoothEnabled() {
+            if (!navigator.bluetooth) {
+                setBleDisconnected('Web Bluetooth not available in this browser');
+                return false;
+            }
+            return true;
+        }
+
+        // Connect BLE handler
+        async function connectToDevice() {
+            userDisconnected = false;
+            try {
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ name: deviceName }],
+                    optionalServices: [bleService]
+                });
+
+                device.addEventListener('gattserverdisconnected', onDisconnected);
+                const gattServer = await device.gatt.connect();
+
+                bleServer = gattServer;
+                setBleConnected(gattServer.device.name);
+
+                const service = await gattServer.getPrimaryService(bleService);
+
+                await subscribeChar(service, tempCharUUID, handleTemp, v => { tempCharFound = v; });
+                await subscribeChar(service, writeIntCharUUID, handleWriteValue, v => { writeIntCharFound = v; });
+
+            } catch (err) {
+                console.error('Connection error:', err);
+                setBleDisconnected('Connection failed: ' + err.message);
+            }
+        }
+
+        async function subscribeChar(service, uuid, handler, storeFn) {
+            try {
+                const char = await service.getCharacteristic(uuid);
+                storeFn(char);
+
+                char.addEventListener('characteristicvaluechanged', handler);
+                await char.startNotifications();
+
+                try {
+                    const val = await char.readValue();
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                    handler({ target: { value: val } });
+                } catch (readErr) {
+                    console.warn('Initial read failed for', uuid, ':', readErr);
+                }
+
+                console.log(`Subscribed to ${uuid}`);
+                return char;
+            } catch (err) {
+                console.warn('Could not subscribe to', uuid, ':', err);
+                throw err;
+            }
+        }
+
+        // Characteristic handlers
+        function handleWriteValue(event) {
+            const value = event.target.value;
+            if (!value || value.byteLength < 4) return;
+
+            const intValue = value.getInt32(0, true);
+            updateWriteValueDisplay(intValue);
+            console.log(`Updated write value from BLE: ${intValue}`);
+        }
+        function handleTemp(event) {
+            var val = parseFloat(new TextDecoder().decode(event.target.value));
+            if (isNaN(val)) return;
+
+            tempVorlValueEl.textContent = val.toFixed(1);
+
+            var ts = getTime();
+            tempTimestamp.textContent = 'Last reading: ' + ts;
+        }
+
+        // Disconnect handlers
+        function onDisconnected(event) {
+            if (!userDisconnected) {
+                setBleDisconnected('Device disconnected unexpectedly');
+            }
+        }
+
+        function disconnectDevice() {
+            if (!bleServer || !bleServer.connected) {
+                alert('Bluetooth is not connected.');
+                return;
+            }
+            userDisconnected = true;
+            const stops = [];
+            if (tempCharFound) stops.push(tempCharFound.stopNotifications().catch(() => { }));
+
+            Promise.all(stops)
+                .then(() => bleServer.disconnect())
+                .then(() => setBleDisconnected('Disconnected'))
+                .catch(err => console.error('Disconnect error:', err));
+        }
+
+        async function writeFanValue(value) {
+            if (!writeIntCharFound) {
+                alert('Write characteristic not available. Please connect to BLE device first.');
+                return;
+            }
+
+            value = parseInt(value, 10);
+            if (isNaN(value)) return;
+
+            try {
+                const buffer = new ArrayBuffer(4);
+                const view = new DataView(buffer);
+                view.setInt32(0, value, true);
+
+                await writeIntCharFound.writeValue(buffer);
+                updateWriteValueDisplay(value);
+                document.getElementById('writeStatus').textContent = `Gesendet: ${value}`;
+            } catch (err) {
+                document.getElementById('writeStatus').textContent = `Fehler: ${err.message}`;
+                console.error('Write error:', err);
+            }
+        }
+
+        function setFanOff() {
+            writeFanValue(0);
+        }
+
+        function setFanMin() {
+            writeFanValue(100);
+        }
+
+        function increaseFan() {
+            writeFanValue(Math.min(currentWriteValue + 10, 159));
+        }
+
+        function decreaseFan() {
+            writeFanValue(Math.max(currentWriteValue - 10, 0));
+        }
+
+        function getTime() {
+            var d = new Date();
+            var p = n => ('00' + n).slice(-2);
+            return p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+        }
+
+        updateWriteValueDisplay(currentWriteValue);
+
+        // Button listeners
+        connectButton.addEventListener('click', () => {
+            if (isWebBluetoothEnabled()) connectToDevice();
+        });
+        disconnectButton.addEventListener('click', disconnectDevice);
+        document.getElementById('fanOffButton').addEventListener('click', setFanOff);
+        document.getElementById('fanMinButton').addEventListener('click', setFanMin);
+        document.getElementById('fanPlusButton').addEventListener('click', increaseFan);
+        document.getElementById('fanMinusButton').addEventListener('click', decreaseFan);
+    </script>
+</body>
+
+</html>
