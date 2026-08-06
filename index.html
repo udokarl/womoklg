@@ -121,16 +121,16 @@
         var userDisconnected = false;
 
         // Sensor state
-        var currentWriteValue = 123;
-        var currentThresholdValue = 60;
+        var currentFanOnValue = 123;
+        var currentUpSchwelleValue = 60;
 
         function updateWriteValueDisplay(value) {
-            currentWriteValue = value;
+            currentFanOnValue = value;
             writeValueEl.textContent = value;
         }
 
         function updateThresholdValueDisplay(value) {
-            currentThresholdValue = value;
+            currentUpSchwelleValue = value;
             thresholdValueEl.textContent = value;
         }
 
@@ -312,7 +312,7 @@
             value = parseInt(value, 10);
             if (isNaN(value)) return;
 
-            value = Math.max(0, Math.min(100, Math.round(value / 5) * 5));
+            value = Math.max(0, Math.min(100, value));
 
             try {
                 const buffer = new ArrayBuffer(4);
@@ -337,19 +337,19 @@
         }
 
         function increaseFan() {
-            writeFanValue(Math.min(currentWriteValue + 10, 159));
+            writeFanValue(Math.min(currentFanOnValue + 10, 159));
         }
 
         function decreaseFan() {
-            writeFanValue(Math.max(currentWriteValue - 10, 0));
+            writeFanValue(Math.max(currentFanOnValue - 10, 0));
         }
 
         function increaseThreshold() {
-            writeThresholdValue(currentThresholdValue + 2);
+            writeThresholdValue(currentUpSchwelleValue + 2);
         }
 
         function decreaseThreshold() {
-            writeThresholdValue(currentThresholdValue - 2);
+            writeThresholdValue(currentUpSchwelleValue - 2);
         }
 
         function getTime() {
@@ -358,8 +358,8 @@
             return p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
         }
 
-        updateWriteValueDisplay(currentWriteValue);
-        updateThresholdValueDisplay(currentThresholdValue);
+        updateWriteValueDisplay(currentFanOnValue);
+        updateThresholdValueDisplay(currentUpSchwelleValue);
 
         // Button listeners
         connectButton.addEventListener('click', () => {
