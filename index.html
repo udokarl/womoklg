@@ -65,7 +65,8 @@
 
             <div class="sensor-card write">
                 <span class="sensor-icon">&#x1F4A8;</span>
-                <div class="sensor-label">Lüfter (off<1000>ON): <span id="writeValue">0</span></div>
+                <div class="sensor-label"><span id="fanLabelText">Lüfter(off):</span> <span id="writeValue">0</span>
+                </div>
                 <div class="write-control fan-control">
                     <button class="fan-btn" id="fanOffButton">Aus</button>
                     <button class="fan-btn" id="fanMinButton">Min</button>
@@ -99,6 +100,7 @@
 
         const tempVorlValueEl = document.getElementById('tempVorlValue');
         const tempNachlValueEl = document.getElementById('tempNachlValue');
+        const fanLabelText = document.getElementById('fanLabelText');
         const writeValueEl = document.getElementById('writeValue');
         const thresholdValueEl = document.getElementById('thresholdValue');
         const tempVorlTimestamp = document.getElementById('tempVorlTimestamp');
@@ -109,6 +111,7 @@
         var bleService = '0000181a-0000-1000-8000-00805f9b34fb';
         var tempVorlCharUUID = '00002a6e-0000-1000-8000-00805f9b34fb';
         var tempNachlCharUUID = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
+        var fanStatusCharUUID = '12345678-1234-5678-1234-56789abcdef2';
         var writeIntCharUUID = '12345678-1234-5678-1234-56789abcdef0';
         var thresholdCharUUID = '12345678-1234-5678-1234-56789abcdef1';
 
@@ -116,6 +119,7 @@
         var bleServer;
         var tempVorlCharFound;
         var tempNachlCharFound;
+        var fanStatusCharFound;
         var writeIntCharFound;
         var thresholdCharFound;
         var userDisconnected = false;
@@ -132,6 +136,12 @@
         function updateThresholdValueDisplay(value) {
             currentUpSchwelleValue = value;
             thresholdValueEl.textContent = value;
+        }
+
+        function updateFanLabelDisplay(statusText) {
+            const normalized = String(statusText || '').trim().toLowerCase();
+            const isOn = normalized === 'on' || normalized === 'true' || normalized === '1';
+            fanLabelText.textContent = isOn ? 'Lüfter (ON):' : 'Lüfter(off):';
         }
 
         // BLE UI helpers
@@ -184,6 +194,7 @@
 
                 await subscribeChar(service, tempVorlCharUUID, handleTempVorl, v => { tempVorlCharFound = v; });
                 await subscribeChar(service, tempNachlCharUUID, handleTempNachl, v => { tempNachlCharFound = v; });
+                await subscribeChar(service, fanStatusCharUUID, handleFanStatus, v => { fanStatusCharFound = v; });
                 await subscribeChar(service, writeIntCharUUID, handleWriteValue, v => { writeIntCharFound = v; });
                 await subscribeChar(service, thresholdCharUUID, handleThresholdValue, v => { thresholdCharFound = v; });
 
@@ -256,6 +267,14 @@
             tempNachlTimestamp.textContent = 'Last reading: ' + ts;
         }
 
+        function handleFanStatus(event) {
+            const statusText = new TextDecoder().decode(event.target.value).trim();
+            if (!statusText) return;
+
+            updateFanLabelDisplay(statusText);
+            console.log(`Updated fan status from BLE: ${statusText}`);
+        }
+
         // Disconnect handlers
         function onDisconnected(event) {
             if (!userDisconnected) {
@@ -272,6 +291,7 @@
             const stops = [];
             if (tempVorlCharFound) stops.push(tempVorlCharFound.stopNotifications().catch(() => { }));
             if (tempNachlCharFound) stops.push(tempNachlCharFound.stopNotifications().catch(() => { }));
+            if (fanStatusCharFound) stops.push(fanStatusCharFound.stopNotifications().catch(() => { }));
             if (thresholdCharFound) stops.push(thresholdCharFound.stopNotifications().catch(() => { }));
 
             Promise.all(stops)
@@ -360,6 +380,7 @@
 
         updateWriteValueDisplay(currentFanOnValue);
         updateThresholdValueDisplay(currentUpSchwelleValue);
+        updateFanLabelDisplay('off');
 
         // Button listeners
         connectButton.addEventListener('click', () => {
