@@ -1,4 +1,4 @@
-<!-- Vers. 2026-09-01-b
+<!-- Vers. 2026-09-01-c
   https://RandomNerdTutorials.com/esp32-web-ble-sensor-visualization/
    -->
 <!DOCTYPE html>
@@ -31,6 +31,7 @@
             border: 1px solid #555;
             border-radius: 8px;
             background: #111;
+            color: #ffffff;
             font-size: 0.85rem;
             line-height: 1.5;
         }
@@ -40,6 +41,12 @@
             gap: 8px;
             align-items: center;
             font-family: monospace;
+            color: #ffffff;
+        }
+
+        .ble-debug-item strong,
+        .ble-debug-item span {
+            color: #ffffff;
         }
 
         .status-ok {
@@ -265,10 +272,27 @@
             return String(uuid || '').toLowerCase().replace(/[^0-9a-f]/g, '');
         }
 
+        function uuidMatches(candidateUuid, targetUuid) {
+            const candidate = normalizeUuid(candidateUuid);
+            const target = normalizeUuid(targetUuid);
+
+            if (!candidate || !target) return false;
+            if (candidate === target) return true;
+
+            // Bluetooth 16-bit UUIDs are often exposed as 128-bit values with a common base prefix.
+            if (candidate.endsWith(target)) return true;
+            if (target.endsWith(candidate)) return true;
+
+            // Fallback for 4-byte and 16-bit variants: compare the last 4 or 8 hex digits.
+            if (candidate.length >= 4 && target.length >= 4 && candidate.endsWith(target.slice(-4))) return true;
+            if (candidate.length >= 8 && target.length >= 8 && candidate.endsWith(target.slice(-8))) return true;
+
+            return false;
+        }
+
         async function findCharacteristicByUuid(service, uuid) {
             const candidates = await service.getCharacteristics();
-            const target = normalizeUuid(uuid);
-            const match = candidates.find(characteristic => normalizeUuid(characteristic.uuid) === target);
+            const match = candidates.find(characteristic => uuidMatches(characteristic.uuid, uuid));
 
             if (!match) {
                 console.warn(`Characteristic ${uuid} not found. Available:`, candidates.map(c => c.uuid));
