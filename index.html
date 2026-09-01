@@ -1,4 +1,4 @@
-<!-- Vers. 2026-09-01-c
+<!-- Vers. 2026-09-01-d
   https://RandomNerdTutorials.com/esp32-web-ble-sensor-visualization/
    -->
 <!DOCTYPE html>
@@ -184,14 +184,15 @@
             tempNachl: 'not checked',
             fanStatus: 'not checked',
             fanValue: 'not checked',
-            threshold: 'not checked'
+            threshold: 'not checked',
+            available: 'not read'
         };
 
         function getBleDebugClass(value) {
             const text = String(value || '').toLowerCase();
             if (text.includes('found')) return 'status-ok';
             if (text.includes('missing') || text.includes('failed') || text.includes('not connected')) return 'status-error';
-            if (text.includes('not checked') || text.includes('unknown')) return 'status-unknown';
+            if (text.includes('not checked') || text.includes('unknown') || text.includes('not read')) return 'status-unknown';
             return 'status-warn';
         }
 
@@ -201,7 +202,8 @@
                 ['tempNachl', 'tempNachl'],
                 ['fanStatus', 'fanStatus'],
                 ['fanValue', 'fanValue'],
-                ['threshold', 'threshold']
+                ['threshold', 'threshold'],
+                ['available', 'available']
             ];
 
             bleDebugList.innerHTML = rows.map(([key, label]) => {
@@ -318,6 +320,9 @@
                 setBleConnected(gattServer.device.name);
 
                 const service = await gattServer.getPrimaryService(bleService);
+                const serviceChars = await service.getCharacteristics();
+                const charUuids = serviceChars.map(ch => ch.uuid);
+                setBleDebugState('available', charUuids.length ? charUuids.join(', ') : 'no characteristics');
 
                 const requiredChars = await Promise.allSettled(
                     requiredCharUuids.map(uuid => subscribeChar(service, uuid, uuid === thresholdCharUUID ? handleThresholdValue : uuid === writeIntCharUUID ? handleWriteValue : uuid === fanStatusCharUUID ? handleFanStatus : handleTempNachl, char => {
