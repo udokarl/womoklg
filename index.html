@@ -1,4 +1,4 @@
-<!-- Vers. 2026-09-01-eineCharakteristik-1
+<!-- Vers. 2026-09-01-eineCharakteristik-2
 
    Based on
   https://RandomNerdTutorials.com/esp32-web-ble-sensor-visualization/
@@ -27,29 +27,7 @@
             cursor: pointer;
         }
 
-        .ble-debug-panel {
-            margin-top: 12px;
-            padding: 10px;
-            border: 1px solid #555;
-            border-radius: 8px;
-            background: #111;
-            color: #ffffff;
-            font-size: 0.85rem;
-            line-height: 1.5;
-        }
 
-        .ble-debug-item {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            font-family: monospace;
-            color: #ffffff;
-        }
-
-        .ble-debug-item strong,
-        .ble-debug-item span {
-            color: #ffffff;
-        }
 
         .status-ok {
             color: #4ade80;
@@ -84,10 +62,7 @@
                 <span class="ble-dot" id="bleDot"></span>
                 <span id="bleState">Disconnected</span>
             </div>
-            <div id="bleDebugPanel" class="ble-debug-panel">
-                <strong>BLE Debug</strong>
-                <div id="bleDebugList"></div>
-            </div>
+
         </div>
         <!-- Sensor Reading Cards -->
         <div class="sensor-grid">
@@ -143,7 +118,6 @@
         const disconnectButton = document.getElementById('disconnectBleButton');
         const bleStateEl = document.getElementById('bleState');
         const bleDot = document.getElementById('bleDot');
-        const bleDebugList = document.getElementById('bleDebugList');
 
         const tempVorlValueEl = document.getElementById('tempVorlValue');
         const tempNachlValueEl = document.getElementById('tempNachlValue');
@@ -172,45 +146,7 @@
         var thresholdCharFound;
         var userDisconnected = false;
 
-        const bleDebugState = {
-            tempVorl: 'not checked',
-            tempNachl: 'not checked',
-            fanStatus: 'not checked',
-            fanValue: 'not checked',
-            threshold: 'not checked',
-            available: 'not read'
-        };
 
-        function getBleDebugClass(value) {
-            const text = String(value || '').toLowerCase();
-            if (text.includes('found')) return 'status-ok';
-            if (text.includes('missing') || text.includes('failed') || text.includes('not connected')) return 'status-error';
-            if (text.includes('not checked') || text.includes('unknown') || text.includes('not read')) return 'status-unknown';
-            return 'status-warn';
-        }
-
-        function updateBleDebugPanel() {
-            const rows = [
-                ['tempVorl', 'tempVorl'],
-                ['tempNachl', 'tempNachl'],
-                ['fanStatus', 'fanStatus'],
-                ['fanValue', 'fanValue'],
-                ['threshold', 'threshold'],
-                ['available', 'available']
-            ];
-
-            bleDebugList.innerHTML = rows.map(([key, label]) => {
-                const value = bleDebugState[key] || 'unknown';
-                return `<div class="ble-debug-item"><strong>${label}:</strong> <span class="${getBleDebugClass(value)}">${value}</span></div>`;
-            }).join('');
-        }
-
-        function setBleDebugState(key, value) {
-            if (bleDebugState[key] !== undefined) {
-                bleDebugState[key] = value;
-                updateBleDebugPanel();
-            }
-        }
 
         // Sensor state
         var currentFanOnValue = 123;
@@ -314,14 +250,11 @@
 
                 const service = await gattServer.getPrimaryService(bleService);
                 const serviceChars = await service.getCharacteristics();
-                const charUuids = serviceChars.map(ch => ch.uuid);
-                setBleDebugState('available', charUuids.length ? charUuids.join(', ') : 'no characteristics');
 
                 const requiredChars = await Promise.allSettled(
                     requiredCharUuids.map(uuid => subscribeChar(service, uuid, handleThresholdValue, char => {
                         if (uuid === thresholdCharUUID) {
                             thresholdCharFound = char;
-                            setBleDebugState('threshold', char ? 'found' : 'missing');
                         }
                     }))
                 );
@@ -329,14 +262,8 @@
                 requiredChars.forEach((result, index) => {
                     if (result.status === 'rejected') {
                         console.warn(`Required characteristic missing: ${requiredCharUuids[index]}`);
-                        setBleDebugState('threshold', 'missing');
                     }
                 });
-
-                setBleDebugState('tempVorl', 'not used');
-                setBleDebugState('tempNachl', 'not used');
-                setBleDebugState('fanStatus', 'not used');
-                setBleDebugState('fanValue', 'not used');
 
             } catch (err) {
                 console.error('Connection error:', err);
@@ -367,8 +294,6 @@
                 return null;
             }
         }
-
-        updateBleDebugPanel();
 
         // Characteristic handlers
         function decodeBleString(value) {
@@ -515,11 +440,9 @@
             try {
                 const service = await bleServer.getPrimaryService(bleService);
                 thresholdCharFound = await findCharacteristicByUuid(service, thresholdCharUUID);
-                setBleDebugState('fanValue', 'found');
             } catch (err) {
                 console.warn('Fan/threshold characteristic not found on demand:', err);
                 document.getElementById('writeStatus').textContent = 'Write characteristic nicht verfügbar. Bitte erneut verbinden.';
-                setBleDebugState('fanValue', 'missing');
                 return;
             }
 
@@ -534,7 +457,6 @@
                 document.getElementById('writeStatus').textContent = `Gesendet: ${value}`;
             } catch (err) {
                 document.getElementById('writeStatus').textContent = `Fehler: ${err.message}`;
-                setBleDebugState('fanValue', `write failed: ${err.message}`);
                 console.error('Write error:', err);
             }
         }
@@ -542,18 +464,15 @@
         async function writeThresholdValue(value) {
             if (!bleServer || !bleServer.connected) {
                 document.getElementById('thresholdStatus').textContent = 'Threshold-Characteristic nicht verfügbar. Bitte erneut verbinden.';
-                setBleDebugState('threshold', 'not connected');
                 return;
             }
 
             try {
                 const service = await bleServer.getPrimaryService(bleService);
                 thresholdCharFound = await findCharacteristicByUuid(service, thresholdCharUUID);
-                setBleDebugState('threshold', 'found');
             } catch (err) {
                 console.warn('Threshold characteristic not found on demand:', err);
                 document.getElementById('thresholdStatus').textContent = 'Threshold-Characteristic nicht verfügbar. Bitte erneut verbinden.';
-                setBleDebugState('threshold', 'missing');
                 return;
             }
 
@@ -570,7 +489,6 @@
                 document.getElementById('thresholdStatus').textContent = `Gesendet: ${value}`;
             } catch (err) {
                 document.getElementById('thresholdStatus').textContent = `Fehler: ${err.message}`;
-                setBleDebugState('threshold', `write failed: ${err.message}`);
                 console.error('Threshold write error:', err);
             }
         }
