@@ -1,4 +1,5 @@
-<!-- Vers. 2026-09-01-g
+<!-- Vers. 2026-09-01-womoklg_v2
+   Based on
   https://RandomNerdTutorials.com/esp32-web-ble-sensor-visualization/
    -->
 <!DOCTYPE html>
@@ -71,7 +72,7 @@
 <body>
     <!-- Navigation -->
     <div class="topnav">
-        <h1>womoklg</h1>
+        <h1>womoklg_v2</h1>
     </div>
     <div class="content">
         <!-- Connect/Disconnect buttons -->
@@ -152,18 +153,17 @@
         const tempNachlTimestamp = document.getElementById('tempNachlTimestamp');
 
         // BLE UUIDs
-        var deviceName = 'womoklg';
+        var deviceName = 'womoklg_v2';
         var bleService = '12345678-1234-5678-1234-56789abcdef9';
-        var tempVorlCharUUID = '00002a6e-0000-1000-8000-00805f9b34fb';
-        var tempNachlCharUUID = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
+        var tempVorlCharUUID = '12345678-1234-5678-1234-56789abcdef3';
+        var tempNachlCharUUID = '12345678-1234-5678-1234-56789abcdef4';
         var fanStatusCharUUID = '12345678-1234-5678-1234-56789abcdef2';
         var writeIntCharUUID = '12345678-1234-5678-1234-56789abcdef0';
         var thresholdCharUUID = '12345678-1234-5678-1234-56789abcdef1';
 
-        // Only the custom service characteristics below are required for this app.
-        // The standard Environmental Sensing UUID for tempVorl is deliberately not required
-        // because it is optional and may not exist on every firmware build.
+        // Minimal BLE layout: all required characteristics are in the same custom service.
         const requiredCharUuids = [
+            tempVorlCharUUID,
             tempNachlCharUUID,
             fanStatusCharUUID,
             writeIntCharUUID,
