@@ -1,4 +1,5 @@
-<!-- Vers. 2026-09-01-womoklg-c
+<!-- Vers. 2026-09-01-eineCharakteristik-1
+
    Based on
   https://RandomNerdTutorials.com/esp32-web-ble-sensor-visualization/
    -->
@@ -155,18 +156,10 @@
         // BLE UUIDs
         var deviceName = 'womoklg';
         var bleService = '12345678-1234-5678-1234-56789abcde00';
-        var tempVorlCharUUID = '12345678-1234-5678-1234-56789abcde01';
-        var tempNachlCharUUID = '12345678-1234-5678-1234-56789abcde02';
-        var fanStatusCharUUID = '12345678-1234-5678-1234-56789abcde03';
-        var writeIntCharUUID = '12345678-1234-5678-1234-56789abcde04';
         var thresholdCharUUID = '12345678-1234-5678-1234-56789abcde05';
 
-        // Final stable BLE layout: exactly the 5 characteristics required for the app.
+        // Minimal verified BLE layout: only the working service and threshold characteristic remain.
         const requiredCharUuids = [
-            tempVorlCharUUID,
-            tempNachlCharUUID,
-            fanStatusCharUUID,
-            writeIntCharUUID,
             thresholdCharUUID
         ];
 
@@ -325,19 +318,7 @@
                 setBleDebugState('available', charUuids.length ? charUuids.join(', ') : 'no characteristics');
 
                 const requiredChars = await Promise.allSettled(
-                    requiredCharUuids.map(uuid => subscribeChar(service, uuid, uuid === thresholdCharUUID ? handleThresholdValue : uuid === writeIntCharUUID ? handleWriteValue : uuid === fanStatusCharUUID ? handleFanStatus : handleTempNachl, char => {
-                        if (uuid === tempNachlCharUUID) {
-                            tempNachlCharFound = char;
-                            setBleDebugState('tempNachl', char ? 'found' : 'missing');
-                        }
-                        if (uuid === fanStatusCharUUID) {
-                            fanStatusCharFound = char;
-                            setBleDebugState('fanStatus', char ? 'found' : 'missing');
-                        }
-                        if (uuid === writeIntCharUUID) {
-                            writeIntCharFound = char;
-                            setBleDebugState('fanValue', char ? 'found' : 'missing');
-                        }
+                    requiredCharUuids.map(uuid => subscribeChar(service, uuid, handleThresholdValue, char => {
                         if (uuid === thresholdCharUUID) {
                             thresholdCharFound = char;
                             setBleDebugState('threshold', char ? 'found' : 'missing');
@@ -348,16 +329,14 @@
                 requiredChars.forEach((result, index) => {
                     if (result.status === 'rejected') {
                         console.warn(`Required characteristic missing: ${requiredCharUuids[index]}`);
-                        const key = requiredCharUuids[index] === tempNachlCharUUID ? 'tempNachl' : requiredCharUuids[index] === fanStatusCharUUID ? 'fanStatus' : requiredCharUuids[index] === writeIntCharUUID ? 'fanValue' : 'threshold';
-                        setBleDebugState(key, 'missing');
+                        setBleDebugState('threshold', 'missing');
                     }
                 });
 
-                // Optional standard UUID: only try it if it exists, but do not fail the whole connection.
-                await subscribeChar(service, tempVorlCharUUID, handleTempVorl, v => { tempVorlCharFound = v; setBleDebugState('tempVorl', v ? 'found' : 'missing'); }).catch(err => {
-                    console.warn('Optional tempVorl characteristic not available:', err.message || err);
-                    setBleDebugState('tempVorl', 'missing');
-                });
+                setBleDebugState('tempVorl', 'not used');
+                setBleDebugState('tempNachl', 'not used');
+                setBleDebugState('fanStatus', 'not used');
+                setBleDebugState('fanValue', 'not used');
 
             } catch (err) {
                 console.error('Connection error:', err);
@@ -419,12 +398,58 @@
             console.log(`Updated write value from BLE: ${intValue}`);
         }
 
-        function handleThresholdValue(event) {
-            const intValue = parseBleInt(event.target.value);
-            if (Number.isNaN(intValue)) return;
+        function parsePayloadState(value) {
+            const text = decodeBleString(value);
+            if (!text) return null;
 
-            updateThresholdValueDisplay(intValue);
-            console.log(`Updated threshold from BLE: ${intValue}`);
+            const state = {};
+            for (const part of text.split(';')) {
+                const [key, ...rest] = part.split('=');
+                if (!key || rest.length === 0) continue;
+                state[key.trim()] = rest.join('=').trim();
+            }
+            return state;
+        }
+
+        function handleThresholdValue(event) {
+            const state = parsePayloadState(event.target.value);
+            if (!state) return;
+
+            if (state.V !== undefined) {
+                const value = Number.parseFloat(state.V);
+                if (!Number.isNaN(value)) {
+                    tempVorlValueEl.textContent = value.toFixed(1);
+                    tempVorlTimestamp.textContent = 'Last reading: ' + getTime();
+                }
+            }
+
+            if (state.N !== undefined) {
+                const value = Number.parseFloat(state.N);
+                if (!Number.isNaN(value)) {
+                    tempNachlValueEl.textContent = value.toFixed(1);
+                    tempNachlTimestamp.textContent = 'Last reading: ' + getTime();
+                }
+            }
+
+            if (state.F !== undefined) {
+                updateFanLabelDisplay(state.F);
+            }
+
+            if (state.D !== undefined) {
+                const value = Number.parseInt(state.D, 10);
+                if (!Number.isNaN(value)) {
+                    updateWriteValueDisplay(value);
+                }
+            }
+
+            if (state.T !== undefined) {
+                const value = Number.parseInt(state.T, 10);
+                if (!Number.isNaN(value)) {
+                    updateThresholdValueDisplay(value);
+                }
+            }
+
+            console.log('Updated BLE state payload:', state);
         }
 
         function handleTempVorl(event) {
@@ -489,10 +514,10 @@
 
             try {
                 const service = await bleServer.getPrimaryService(bleService);
-                writeIntCharFound = await findCharacteristicByUuid(service, writeIntCharUUID);
+                thresholdCharFound = await findCharacteristicByUuid(service, thresholdCharUUID);
                 setBleDebugState('fanValue', 'found');
             } catch (err) {
-                console.warn('Fan characteristic not found on demand:', err);
+                console.warn('Fan/threshold characteristic not found on demand:', err);
                 document.getElementById('writeStatus').textContent = 'Write characteristic nicht verfügbar. Bitte erneut verbinden.';
                 setBleDebugState('fanValue', 'missing');
                 return;
@@ -502,9 +527,9 @@
             if (isNaN(value)) return;
 
             try {
-                const text = String(value);
+                const text = `SET|D=${Math.max(0, Math.min(159, value))}`;
                 const bytes = new TextEncoder().encode(text);
-                await writeIntCharFound.writeValue(bytes);
+                await thresholdCharFound.writeValue(bytes);
                 updateWriteValueDisplay(value);
                 document.getElementById('writeStatus').textContent = `Gesendet: ${value}`;
             } catch (err) {
@@ -538,7 +563,7 @@
             value = Math.max(0, Math.min(100, value));
 
             try {
-                const text = String(value);
+                const text = `SET|T=${value}`;
                 const bytes = new TextEncoder().encode(text);
                 await thresholdCharFound.writeValue(bytes);
                 updateThresholdValueDisplay(value);
