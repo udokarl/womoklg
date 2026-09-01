@@ -1,4 +1,4 @@
-<!-- Vers. 2026-08-31
+<!-- Vers. 2026-09-01
   https://RandomNerdTutorials.com/esp32-web-ble-sensor-visualization/
    -->
 <!DOCTYPE html>
@@ -115,6 +115,16 @@
         var writeIntCharUUID = '12345678-1234-5678-1234-56789abcdef0';
         var thresholdCharUUID = '12345678-1234-5678-1234-56789abcdef1';
 
+        // Only the custom service characteristics below are required for this app.
+        // The standard Environmental Sensing UUID for tempVorl is deliberately not required
+        // because it is optional and may not exist on every firmware build.
+        const requiredCharUuids = [
+            tempNachlCharUUID,
+            fanStatusCharUUID,
+            writeIntCharUUID,
+            thresholdCharUUID
+        ];
+
         // BLE state
         var bleServer;
         var tempVorlCharFound;
@@ -209,11 +219,25 @@
 
                 const service = await gattServer.getPrimaryService(bleService);
 
-                await subscribeChar(service, tempVorlCharUUID, handleTempVorl, v => { tempVorlCharFound = v; });
-                await subscribeChar(service, tempNachlCharUUID, handleTempNachl, v => { tempNachlCharFound = v; });
-                await subscribeChar(service, fanStatusCharUUID, handleFanStatus, v => { fanStatusCharFound = v; });
-                await subscribeChar(service, writeIntCharUUID, handleWriteValue, v => { writeIntCharFound = v; });
-                await subscribeChar(service, thresholdCharUUID, handleThresholdValue, v => { thresholdCharFound = v; });
+                const requiredChars = await Promise.allSettled(
+                    requiredCharUuids.map(uuid => subscribeChar(service, uuid, uuid === thresholdCharUUID ? handleThresholdValue : uuid === writeIntCharUUID ? handleWriteValue : uuid === fanStatusCharUUID ? handleFanStatus : handleTempNachl, char => {
+                        if (uuid === tempNachlCharUUID) tempNachlCharFound = char;
+                        if (uuid === fanStatusCharUUID) fanStatusCharFound = char;
+                        if (uuid === writeIntCharUUID) writeIntCharFound = char;
+                        if (uuid === thresholdCharUUID) thresholdCharFound = char;
+                    }))
+                );
+
+                requiredChars.forEach((result, index) => {
+                    if (result.status === 'rejected') {
+                        console.warn(`Required characteristic missing: ${requiredCharUuids[index]}`);
+                    }
+                });
+
+                // Optional standard UUID: only try it if it exists, but do not fail the whole connection.
+                await subscribeChar(service, tempVorlCharUUID, handleTempVorl, v => { tempVorlCharFound = v; }).catch(err => {
+                    console.warn('Optional tempVorl characteristic not available:', err.message || err);
+                });
 
             } catch (err) {
                 console.error('Connection error:', err);
@@ -241,7 +265,7 @@
                 return char;
             } catch (err) {
                 console.warn('Could not subscribe to', uuid, ':', err);
-                throw err;
+                return null;
             }
         }
 
