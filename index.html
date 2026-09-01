@@ -175,6 +175,23 @@
             return true;
         }
 
+        function normalizeUuid(uuid) {
+            return String(uuid || '').toLowerCase().replace(/[^0-9a-f]/g, '');
+        }
+
+        async function findCharacteristicByUuid(service, uuid) {
+            const candidates = await service.getCharacteristics();
+            const target = normalizeUuid(uuid);
+            const match = candidates.find(characteristic => normalizeUuid(characteristic.uuid) === target);
+
+            if (!match) {
+                console.warn(`Characteristic ${uuid} not found. Available:`, candidates.map(c => c.uuid));
+                throw new Error(`Characteristic ${uuid} not found`);
+            }
+
+            return match;
+        }
+
         // Connect BLE handler
         async function connectToDevice() {
             userDisconnected = false;
@@ -206,7 +223,7 @@
 
         async function subscribeChar(service, uuid, handler, storeFn) {
             try {
-                const char = await service.getCharacteristic(uuid);
+                const char = await findCharacteristicByUuid(service, uuid);
                 storeFn(char);
 
                 char.addEventListener('characteristicvaluechanged', handler);
