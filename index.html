@@ -1,4 +1,4 @@
-<!-- Vers. 2026-09-01-eineCharakteristik-2
+<!-- womoklg, V1.0 
 
    Based on
   https://RandomNerdTutorials.com/esp32-web-ble-sensor-visualization/
@@ -26,32 +26,14 @@
             font-size: 1rem;
             cursor: pointer;
         }
-
-
-
-        .status-ok {
-            color: #4ade80;
-        }
-
-        .status-warn {
-            color: #fbbf24;
-        }
-
-        .status-error {
-            color: #f87171;
-        }
-
-        .status-unknown {
-            color: #9ca3af;
-        }
     </style>
 
 </head>
 
 <body>
-    <!-- Navigation -->
+    <!-- Navigation, Text kann als Version genutzt werden-->
     <div class="topnav">
-        <h1>womoklg</h1>
+        <h1>womoklg, V1.0</h1>
     </div>
     <div class="content">
         <!-- Connect/Disconnect buttons -->
@@ -139,10 +121,6 @@
 
         // BLE state
         var bleServer;
-        var tempVorlCharFound;
-        var tempNachlCharFound;
-        var fanStatusCharFound;
-        var writeIntCharFound;
         var thresholdCharFound;
         var userDisconnected = false;
 
@@ -419,9 +397,6 @@
             }
             userDisconnected = true;
             const stops = [];
-            if (tempVorlCharFound) stops.push(tempVorlCharFound.stopNotifications().catch(() => { }));
-            if (tempNachlCharFound) stops.push(tempNachlCharFound.stopNotifications().catch(() => { }));
-            if (fanStatusCharFound) stops.push(fanStatusCharFound.stopNotifications().catch(() => { }));
             if (thresholdCharFound) stops.push(thresholdCharFound.stopNotifications().catch(() => { }));
 
             Promise.all(stops)
@@ -433,7 +408,6 @@
         async function writeFanValue(value) {
             if (!bleServer || !bleServer.connected) {
                 document.getElementById('writeStatus').textContent = 'Write characteristic nicht verfügbar. Bitte erneut verbinden.';
-                setBleDebugState('fanValue', 'not connected');
                 return;
             }
 
