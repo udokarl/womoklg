@@ -1,4 +1,4 @@
-<!-- Vers. 2026-09-01-womoklg_v2
+<!-- Vers. 2026-09-01-womoklg_v2-b
    Based on
   https://RandomNerdTutorials.com/esp32-web-ble-sensor-visualization/
    -->
@@ -153,7 +153,7 @@
         const tempNachlTimestamp = document.getElementById('tempNachlTimestamp');
 
         // BLE UUIDs
-        var deviceName = 'womoklg_v2';
+        var deviceName = 'womoklg';
         var bleService = '12345678-1234-5678-1234-56789abcdef9';
         var tempVorlCharUUID = '12345678-1234-5678-1234-56789abcdef3';
         var tempNachlCharUUID = '12345678-1234-5678-1234-56789abcdef4';
@@ -161,7 +161,7 @@
         var writeIntCharUUID = '12345678-1234-5678-1234-56789abcdef0';
         var thresholdCharUUID = '12345678-1234-5678-1234-56789abcdef1';
 
-        // Minimal BLE layout: all required characteristics are in the same custom service.
+        // Stable BLE layout: all required characteristics are in the same custom service.
         const requiredCharUuids = [
             tempVorlCharUUID,
             tempNachlCharUUID,
