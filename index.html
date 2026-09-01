@@ -1,4 +1,4 @@
-<!-- Vers. 2026-09-01-womoklg_v2-b
+<!-- Vers. 2026-09-01-womoklg-c
    Based on
   https://RandomNerdTutorials.com/esp32-web-ble-sensor-visualization/
    -->
@@ -72,7 +72,7 @@
 <body>
     <!-- Navigation -->
     <div class="topnav">
-        <h1>womoklg_v2</h1>
+        <h1>womoklg</h1>
     </div>
     <div class="content">
         <!-- Connect/Disconnect buttons -->
@@ -154,14 +154,14 @@
 
         // BLE UUIDs
         var deviceName = 'womoklg';
-        var bleService = '12345678-1234-5678-1234-56789abcdef9';
-        var tempVorlCharUUID = '12345678-1234-5678-1234-56789abcdef3';
-        var tempNachlCharUUID = '12345678-1234-5678-1234-56789abcdef4';
-        var fanStatusCharUUID = '12345678-1234-5678-1234-56789abcdef2';
-        var writeIntCharUUID = '12345678-1234-5678-1234-56789abcdef0';
-        var thresholdCharUUID = '12345678-1234-5678-1234-56789abcdef1';
+        var bleService = '12345678-1234-5678-1234-56789abcde00';
+        var tempVorlCharUUID = '12345678-1234-5678-1234-56789abcde01';
+        var tempNachlCharUUID = '12345678-1234-5678-1234-56789abcde02';
+        var fanStatusCharUUID = '12345678-1234-5678-1234-56789abcde03';
+        var writeIntCharUUID = '12345678-1234-5678-1234-56789abcde04';
+        var thresholdCharUUID = '12345678-1234-5678-1234-56789abcde05';
 
-        // Stable BLE layout: all required characteristics are in the same custom service.
+        // Final stable BLE layout: exactly the 5 characteristics required for the app.
         const requiredCharUuids = [
             tempVorlCharUUID,
             tempNachlCharUUID,
