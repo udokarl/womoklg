@@ -1,4 +1,4 @@
-<!-- womoklg, V1.2
+<!-- womoklg, V1.3
 
    Based on
   https://RandomNerdTutorials.com/esp32-web-ble-sensor-visualization/
@@ -49,21 +49,23 @@
         <!-- Sensor Reading Cards -->
         <div class="sensor-grid">
             <div class="sensor-card temp">
-                <!--                <span class="sensor-icon">&#x1F321;</span> -->
-                <div class="sensor-label">Temperatur Vorlauf</div>
+                <!--                <span class="sensor-icon">&#x1F321;</span>
+-->
+                <div class="sensor-label">Temperatur Eingang</div>
                 <div class="sensor-value">
-                    <span id="tempVorlValue">--</span><span class="sensor-unit">&nbsp;&deg;C</span>
+                    <span id="tempEingValue">--</span><span class="sensor-unit">&nbsp;&deg;C</span>
                 </div>
-                <div class="sensor-timestamp" id="tempVorlTimestamp">No reading</div>
+                <div class="sensor-timestamp" id="tempEingTimestamp">No reading</div>
             </div>
 
             <div class="sensor-card temp">
-                <!--                <span class="sensor-icon">&#x1F321;</span> -->
-                <div class="sensor-label">Temperatur Nachlauf</div>
+                <!--                <span class="sensor-icon">&#x1F321;</span> 
+-->
+                <div class="sensor-label">Temperatur Ausgang</div>
                 <div class="sensor-value">
-                    <span id="tempNachlValue">--</span><span class="sensor-unit">&nbsp;&deg;C</span>
+                    <span id="tempAusgValue">--</span><span class="sensor-unit">&nbsp;&deg;C</span>
                 </div>
-                <div class="sensor-timestamp" id="tempNachlTimestamp">No reading</div>
+                <div class="sensor-timestamp" id="tempAusgTimestamp">No reading</div>
             </div>
 
             <div class="sensor-card write">
@@ -103,13 +105,13 @@
         const bleStateEl = document.getElementById('bleState');
         const bleDot = document.getElementById('bleDot');
 
-        const tempVorlValueEl = document.getElementById('tempVorlValue');
-        const tempNachlValueEl = document.getElementById('tempNachlValue');
+        const tempEingValueEl = document.getElementById('tempEingValue');
+        const tempAusgValueEl = document.getElementById('tempAusgValue');
         const fanLabelText = document.getElementById('fanLabelText');
         const writeValueEl = document.getElementById('writeValue');
         const thresholdValueEl = document.getElementById('thresholdValue');
-        const tempVorlTimestamp = document.getElementById('tempVorlTimestamp');
-        const tempNachlTimestamp = document.getElementById('tempNachlTimestamp');
+        const tempEingTimestamp = document.getElementById('tempEingTimestamp');
+        const tempAusgTimestamp = document.getElementById('tempAusgTimestamp');
 
         // BLE UUIDs
         var deviceName = 'womoklg';
@@ -229,7 +231,6 @@
                 setBleConnected(gattServer.device.name);
 
                 const service = await gattServer.getPrimaryService(bleService);
-                const serviceChars = await service.getCharacteristics();
 
                 const requiredChars = await Promise.allSettled(
                     requiredCharUuids.map(uuid => subscribeChar(service, uuid, handleThresholdValue, char => {
@@ -281,28 +282,6 @@
             return new TextDecoder().decode(value).trim();
         }
 
-        function parseBleFloat(value) {
-            const text = decodeBleString(value);
-            if (!text) return NaN;
-            const parsed = Number.parseFloat(text);
-            return Number.isFinite(parsed) ? parsed : NaN;
-        }
-
-        function parseBleInt(value) {
-            const text = decodeBleString(value);
-            if (!text) return NaN;
-            const parsed = Number.parseInt(text, 10);
-            return Number.isFinite(parsed) ? parsed : NaN;
-        }
-
-        function handleWriteValue(event) {
-            const intValue = parseBleInt(event.target.value);
-            if (Number.isNaN(intValue)) return;
-
-            updateWriteValueDisplay(intValue);
-            console.log(`Updated write value from BLE: ${intValue}`);
-        }
-
         function parsePayloadState(value) {
             const text = decodeBleString(value);
             if (!text) return null;
@@ -323,16 +302,16 @@
             if (state.V !== undefined) {
                 const value = Number.parseFloat(state.V);
                 if (!Number.isNaN(value)) {
-                    tempVorlValueEl.textContent = value.toFixed(1);
-                    tempVorlTimestamp.textContent = 'Last reading: ' + getTime();
+                    tempEingValueEl.textContent = value.toFixed(1);
+                    tempEingTimestamp.textContent = 'Last reading: ' + getTime();
                 }
             }
 
             if (state.N !== undefined) {
                 const value = Number.parseFloat(state.N);
                 if (!Number.isNaN(value)) {
-                    tempNachlValueEl.textContent = value.toFixed(1);
-                    tempNachlTimestamp.textContent = 'Last reading: ' + getTime();
+                    tempAusgValueEl.textContent = value.toFixed(1);
+                    tempAusgTimestamp.textContent = 'Last reading: ' + getTime();
                 }
             }
 
@@ -355,34 +334,6 @@
             }
 
             console.log('Updated BLE state payload:', state);
-        }
-
-        function handleTempVorl(event) {
-            const val = parseBleFloat(event.target.value);
-            if (Number.isNaN(val)) return;
-
-            tempVorlValueEl.textContent = val.toFixed(1);
-
-            var ts = getTime();
-            tempVorlTimestamp.textContent = 'Last reading: ' + ts;
-        }
-
-        function handleTempNachl(event) {
-            const val = parseBleFloat(event.target.value);
-            if (Number.isNaN(val)) return;
-
-            tempNachlValueEl.textContent = val.toFixed(1);
-
-            var ts = getTime();
-            tempNachlTimestamp.textContent = 'Last reading: ' + ts;
-        }
-
-        function handleFanStatus(event) {
-            const statusText = decodeBleString(event.target.value);
-            if (!statusText) return;
-
-            updateFanLabelDisplay(statusText);
-            console.log(`Updated fan status from BLE: ${statusText}`);
         }
 
         // Disconnect handlers
