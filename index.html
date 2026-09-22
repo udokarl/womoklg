@@ -1,4 +1,4 @@
-<!-- womoklg, V1.4
+<!-- womoklg, V1.5
    Based on https://RandomNerdTutorials.com/esp32-web-ble-sensor-visualization/
    -->
 <!DOCTYPE html>
@@ -31,7 +31,7 @@
 <body>
     <!-- Navigation, Text kann als Version genutzt werden-->
     <div class="topnav">
-        <h1>womoklg, V1.4</h1>
+        <h1>womoklg, V1.5</h1>
     </div>
     <div class="content">
         <!-- Connect/Disconnect buttons -->
@@ -429,11 +429,11 @@
         }
 
         function increaseFan() {
-            writeFanValue(Math.min(currentFanOnValue + 10, 159));
+            writeFanValue(Math.min(currentFanOnValue + 1, 159));
         }
 
         function decreaseFan() {
-            writeFanValue(Math.max(currentFanOnValue - 10, 0));
+            writeFanValue(Math.max(currentFanOnValue - 1, 0));
         }
 
         function increaseThreshold() {
